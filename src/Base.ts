@@ -1,7 +1,7 @@
 import got, { Headers, OptionsOfTextResponseBody } from "got";
 import { HttpsProxyAgent } from 'hpagent';
 import { ConstructorOptions, Cookie } from "./interfaces.js";
-import settings from "./settings.js";
+
 
 class Base {
   private proxy: string | null;
@@ -10,7 +10,7 @@ class Base {
 
   constructor(options?: ConstructorOptions) {
     this.proxy = options ? (options.proxy ? options.proxy : null) : null;
-    this.userAgent = options && options.userAgent ? options.userAgent : settings.defaultUserAgent
+    this.userAgent = options && options.userAgent ? options.userAgent :  `Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36`
   }
 
   public setCookies(cookies: { [cookieName: string]: Cookie }) {
