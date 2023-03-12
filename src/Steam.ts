@@ -1,5 +1,4 @@
 import Base from "./Base.js";
-
 import crypto from "crypto";
 //@ts-ignore
 import { hex2b64, Key } from "node-bignumber";
@@ -193,6 +192,11 @@ class Steam extends Base {
         } catch (err) {
             throw new Error(`Can't create buy order: ${err}`);
         }
+    }
+    async getLastSales(market_hash_name: string) {
+        return this.doRequest(`https://steamcommunity.com/market/listings/730/${encodeURIComponent(market_hash_name)}`, {
+
+        }, { isJsonResult: false, useCookies: false});
     }
 }
 

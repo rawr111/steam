@@ -1,6 +1,6 @@
 import got, { Headers, OptionsOfTextResponseBody } from "got";
 import { HttpsProxyAgent } from 'hpagent';
-import { ConstructorOptions, Cookie } from "./interfaces";
+import { ConstructorOptions, Cookie } from "./interfaces.js";
 
 class Base {
   private proxy: string | null;
@@ -44,7 +44,12 @@ class Base {
       this.cookies[parsedCookie.name] = parsedCookie;
     }
   }
-  protected async doRequest(url: string, requestOptions?: OptionsOfTextResponseBody, options?: { isJsonResult?: boolean, useProxy?: boolean, useCookies?: boolean }) {
+  protected async doRequest(url: string, requestOptions?: OptionsOfTextResponseBody, options?: {
+    isJsonResult?: boolean,
+    useProxy?: boolean,
+    useCookies?: boolean,
+    customProxy?: string
+  }) {
     try {
       const headers = requestOptions && requestOptions.headers ? requestOptions.headers : {};
       const cookies = requestOptions && requestOptions.headers && requestOptions.headers.cookie ? this.parseCookiesString(requestOptions.headers.cookie as string) : {};
@@ -59,10 +64,16 @@ class Base {
         ...requestOptions
       }
 
-      if (this.proxy && (options?.useProxy || typeof (options) === 'undefined')) actualRequestOptions.agent = {
-        https: this.getProxyAgent(),
-        http: this.getProxyAgent()
-      }
+      if (options?.customProxy) {
+        actualRequestOptions.agent = {
+          https: this.getProxyAgent(options.customProxy),
+          http: this.getProxyAgent(options.customProxy)
+        }
+      } else if (this.proxy && (options?.useProxy || typeof (options) === 'undefined'))
+        actualRequestOptions.agent = {
+          https: this.getProxyAgent(this.proxy),
+          http: this.getProxyAgent(this.proxy)
+        }
       console.log(actualRequestOptions);
       const response = await got(url, actualRequestOptions);
       const newCookies = response.headers["set-cookie"];
@@ -80,14 +91,14 @@ class Base {
       throw new Error(`Request error: ${err}`);
     }
   }
-  private getProxyAgent() {
+  private getProxyAgent(proxy: string) {
     return new HttpsProxyAgent({
       keepAlive: true,
       keepAliveMsecs: 1000,
       maxSockets: 256,
       maxFreeSockets: 256,
       scheduling: 'lifo',
-      proxy: `http://${this.proxy}`
+      proxy: `http://${proxy}`
     });
   }
 }
