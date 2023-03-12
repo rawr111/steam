@@ -1,49 +1,47 @@
 import got, { Headers, OptionsOfTextResponseBody } from "got";
 import { HttpsProxyAgent } from 'hpagent';
-import { ConstructorOptions } from "./interfaces";
+import { ConstructorOptions, Cookie } from "./interfaces";
 
 class Base {
   private proxy: string | null;
-  private cookies: { [cookieName: string]: string | null } = {};
+  private cookies: { [cookieName: string]: Cookie } = {};
 
   constructor(options?: ConstructorOptions) {
     this.proxy = options ? (options.proxy ? options.proxy : null) : null;
   }
 
-  protected packCookiesToString(cookies: { [cookieName: string]: string | null }) {
+  public setCookies(cookies: { [cookieName: string]: Cookie }) {
+    this.cookies = cookies;
+  }
+  public getCookies() {
+    return this.cookies;
+  }
+  public clearCookies() {
+    this.cookies = {};
+  }
+  protected packCookiesToString(cookies: { [cookieName: string]: Cookie }) {
     let result = ``;
     for (const cookieName in cookies) {
-      const cookieValue = cookies[cookieName];
-      if (cookieValue)
-        result += `${cookieName}=${cookieValue}; `;
-      else
-        result += `${cookieName}; `;
+      const cookie = cookies[cookieName];
+      result += `${cookieName}=${cookie.value}; `;
     }
     return result;
   }
-  protected parseCookiesString(cookies: string) {
-    const splittedCookies = cookies.split('; ');
-    const result: { [cookieName: string]: string | null } = {};
-    for (const cookie of splittedCookies) {
-      const splittedCookie = cookie.split('=');
-      if (splittedCookie.length === 1) {
-        result[splittedCookie[0]] = null
-      } else if (splittedCookie.length === 2) {
-        if (typeof (splittedCookie[1]) === 'undefined') {
-          result[splittedCookie[0]] = null;
-        } else {
-          result[splittedCookie[0]] = splittedCookie[1];
-        }
-      } else {
-        throw new Error(`Not valid cookies string`);
-      }
+  protected parseCookiesString(cookieStr: string): Cookie {
+    const splittedCookies = cookieStr.split('; ');
+    const expiresCookie = splittedCookies.filter(c => c.includes('Expires'))[0];
+
+    const cookie: Cookie = {
+      name: splittedCookies[0].split('=')[0],
+      value: splittedCookies[0].split('=')[1],
+      expires: expiresCookie ? new Date(expiresCookie.split('=')[1]) : null
     }
-    return result;
+    return cookie;
   }
-  protected setCookies(cookies: string[]) {
+  protected setDirtyCookies(cookies: string[]) {
     for (const cookie of cookies) {
-      const parsedCookies = this.parseCookiesString(cookie);
-      this.cookies = { ...this.cookies, ...parsedCookies };
+      const parsedCookie = this.parseCookiesString(cookie);
+      this.cookies[parsedCookie.name] = parsedCookie;
     }
   }
   protected async doRequest(url: string, requestOptions?: OptionsOfTextResponseBody, options?: { isJsonResult?: boolean, useProxy?: boolean, useCookies?: boolean }) {
@@ -65,9 +63,10 @@ class Base {
         https: this.getProxyAgent(),
         http: this.getProxyAgent()
       }
+      console.log(actualRequestOptions);
       const response = await got(url, actualRequestOptions);
       const newCookies = response.headers["set-cookie"];
-      if (newCookies) this.setCookies(newCookies);
+      if (newCookies) this.setDirtyCookies(newCookies);
       if (options?.isJsonResult || typeof (options?.isJsonResult) === 'undefined') {
         try {
           return JSON.parse(response.body);

@@ -63,3 +63,17 @@ export interface Cookies {
     sessionid?: string;
     steamCountry?: string;
 }
+
+export interface Cookie {
+    name: string;
+    value: string;
+    expires: Date | null;
+}
+
+export interface CreateBuyOrderParams {
+    market_hash_name: string;
+    appid: number;
+    price: number;
+    quantity: number;
+    currency: 1 | 2 | 3 | 4 | 5;
+}

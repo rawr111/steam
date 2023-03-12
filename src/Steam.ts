@@ -3,7 +3,7 @@ import Base from "./Base.js";
 import crypto from "crypto";
 //@ts-ignore
 import { hex2b64, Key } from "node-bignumber";
-import { AuthentificationParams, ClientJsToken, ConstructorOptions, DoLoginParams, RsaKey } from "./interfaces.js";
+import { AuthentificationParams, ClientJsToken, ConstructorOptions, CreateBuyOrderParams, DoLoginParams, RsaKey } from "./interfaces.js";
 
 class Steam extends Base {
     constructor(options?: ConstructorOptions) {
@@ -67,15 +67,37 @@ class Steam extends Base {
                     loginfriendlyname: null,
                     captchagid: -1,
                     captcha_text: null,
-                    emailsteamid: timestamp,
+                    emailsteamid: null,
+                    rsatimestamp: timestamp,
                     remember_login: true,
                     tokentype: -1,
                 }
             });
-            console.log(response);
+
+            if (!response.success && response.emailauth_needed) {
+                throw new Error(`Steam Guard`);
+            } else if (!response.success && response.requires_twofactor) {
+                throw new Error("SteamGuardMobile");
+            } else if (!response.success && response.captcha_needed && response.message.match(/Please verify your humanity/)) {
+                throw new Error("Captcha");
+            } else if (!response.success) {
+                throw new Error("Unknown error");
+            } else {
+                const sid = this.generateSessionID();
+                const transfer_parameters = response.transfer_parameters;
+                const newCookies = [
+                    `sessionid=${sid}`,
+                    `steamLoginSecure=${transfer_parameters.token_secure}`,
+                    `steamMachineAuth${transfer_parameters.steamid}=${transfer_parameters.webcookie}`
+                ];
+                return newCookies;
+            }
         } catch (err) {
-            throw new Error(`Cant't get rsa key: ${err}`);
+            throw new Error(`Cant't do login: ${err}`);
         }
+    }
+    private generateSessionID() {
+        return crypto.randomBytes(12).toString('hex');
     }
     private bufferizeSecret(shared_secret: string) {
         try {
@@ -125,21 +147,52 @@ class Steam extends Base {
                 throw new Error(`Already logged in`);
             }
             if (params.accountName && params.password && (params.shared_secret || params.twoFactorCode)) {
-                await this.doLogin({
+                const cookies = await this.doLogin({
                     accountName: params.accountName,
                     password: params.password,
                     shared_secret: params.shared_secret,
                     twoFactorCode: params.twoFactorCode
                 });
+                return cookies;
             } else {
                 throw new Error(`Authentification params is not valid`);
             }
-
-
         } catch (err) {
             throw new Error(`Can't authentificate in Steam: ${err}`);
         }
+    }
 
+    async createBuyOrder(params: CreateBuyOrderParams): Promise<void> {
+        try {
+            const cookies = this.getCookies();
+            if (!cookies.sessionid) throw new Error(`Not logged in`);
+            const response = await this.doRequest('https://steamcommunity.com/market/createbuyorder/', {
+                method: 'POST',
+                headers: {
+                    "Content-Type": "application/x-www-form-urlencoded",
+                    "Referer": `https://steamcommunity.com/market/listings/${params.appid}/${encodeURIComponent(params.market_hash_name)}`
+                },
+                form: {
+                    sessionid: cookies.sessionid.value,
+                    currency: params.currency,
+                    appid: params.appid,
+                    market_hash_name: params.market_hash_name,
+                    price_total: params.price,
+                    quantity: params.quantity,
+                    save_my_address: 0
+                }
+            });
+            if (response.success === 1) {
+                console.log(response);
+                return;
+            } else if (response.success === 25) {
+                throw new Error(`Maximum order amount exceeded`);
+            } else if (response.success === 29) {
+                throw new Error(`Order already exists`);
+            }
+        } catch (err) {
+            throw new Error(`Can't create buy order: ${err}`);
+        }
     }
 }
 
