@@ -1,8 +1,8 @@
 {
-  "name": "skinswap-swap",
+  "name": "steam",
   "version": "1.0.0",
   "description": "",
-  "main": "./src/index.js",
+  "main": "./src/Steam.ts",
   "scripts": {
     "dev": "vitest",
     "test": "vitest run",
