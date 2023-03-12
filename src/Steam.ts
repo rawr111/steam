@@ -197,9 +197,12 @@ class Steam extends Base {
             throw new Error(`Can't create buy order: ${err}`);
         }
     }
-    /**(работа с тп) Возвращает все точки на графике, отображаемые в Steam (date, price, quantity) В ДОЛЛАРАХ США!*/
+    /**(работа с тп) Возвращает все точки на графике, отображаемые в Steam (date, price, quantity) В ДОЛЛАРАХ США!
+     * @param market_hash_name - полное название предмета
+     * @param options - настройки запроса
+    */
     async getLastSales(market_hash_name: string, options?: {
-        /**прокси в формате username:password@ip:port, через который пройдет запрос (он будет приоритетнее, чем тот, который передан в конструктор класса) */
+        /**прокси в формате http://username:password@ip:port, через который пройдет запрос (он будет приоритетнее, чем тот, который передан в конструктор класса) */
         proxy?: string,
         /**Использовать ли куки аккаунта в запросе */
         withLogin?: boolean
