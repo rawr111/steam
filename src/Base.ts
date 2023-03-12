@@ -1,13 +1,16 @@
 import got, { Headers, OptionsOfTextResponseBody } from "got";
 import { HttpsProxyAgent } from 'hpagent';
 import { ConstructorOptions, Cookie } from "./interfaces.js";
+import settings from "./settings.js";
 
 class Base {
   private proxy: string | null;
   private cookies: { [cookieName: string]: Cookie } = {};
+  private userAgent: string;
 
   constructor(options?: ConstructorOptions) {
     this.proxy = options ? (options.proxy ? options.proxy : null) : null;
+    this.userAgent = options && options.userAgent ? options.userAgent : settings.defaultUserAgent
   }
 
   public setCookies(cookies: { [cookieName: string]: Cookie }) {
@@ -45,9 +48,13 @@ class Base {
     }
   }
   protected async doRequest(url: string, requestOptions?: OptionsOfTextResponseBody, options?: {
+    /**Ответ сервера в формате json? */
     isJsonResult?: boolean,
-    useProxy?: boolean,
-    useCookies?: boolean,
+    /**Использовать ли прокси, установленный в конструкторе класса? Если параметр не передается, то прокси используется */
+    useDefaultProxy?: boolean,
+    /**Использовать ли сохраненные в оперативной памяти куки? */
+    useSavedCookies?: boolean,
+    /**Использовать ли на этот запрос отдельный прокси? Этот параметр перекрывает дефолтный прокси */
     customProxy?: string
   }) {
     try {
@@ -57,7 +64,7 @@ class Base {
       const allCookies = { ...this.cookies, ...cookies };
       const actualRequestOptions: OptionsOfTextResponseBody = {
         headers: {
-          cookie: options?.useCookies === false ? `` : this.packCookiesToString(allCookies),
+          cookie: options?.useSavedCookies === false ? `` : this.packCookiesToString(allCookies),
           'User-Agent': `Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36`,
           ...headers
         },
@@ -69,7 +76,7 @@ class Base {
           https: this.getProxyAgent(options.customProxy),
           http: this.getProxyAgent(options.customProxy)
         }
-      } else if (this.proxy && (options?.useProxy || typeof (options) === 'undefined'))
+      } else if (this.proxy && (options?.useDefaultProxy || typeof (options) === 'undefined'))
         actualRequestOptions.agent = {
           https: this.getProxyAgent(this.proxy),
           http: this.getProxyAgent(this.proxy)
@@ -98,7 +105,7 @@ class Base {
       maxSockets: 256,
       maxFreeSockets: 256,
       scheduling: 'lifo',
-      proxy: `http://${proxy}`
+      proxy: proxy
     });
   }
 }

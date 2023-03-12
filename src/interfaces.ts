@@ -7,7 +7,9 @@ export interface ClientJsToken {
 }
 
 export interface ConstructorOptions {
+    /**Прокси должен быть в следующем формате: http://username:password@login:password */
     proxy?: string
+    /**Это свойство User-Agent, которое будет в headers каждого запроса.  */
     userAgent?: string;
 }
 
@@ -44,24 +46,20 @@ export interface MaFile {
     Session: MaFileSession
 }
 
-export interface AuthentificationParams {
-    accountName?: string;
-    password?: string;
-    shared_secret?: string;
-    twoFactorCode?: string;
+export interface AuthentificationParams extends DoLoginParams {
+    /**Объект формата maFile (как в sda) */
     maFile?: MaFile;
 }
 
 export interface DoLoginParams {
+    /**Логин steam аккаунта (ЭТО НЕ НИКНЕЙМ)*/
     accountName: string;
+    /**Пароль от Steam аккаунта */
     password: string;
+    /**Это свойство необходимо для генерации two factor кодов (которые в моб. приложении). Можно достать из maFile (sda) */
     shared_secret?: string;
+    /**Непосредственно guard код (тот самый 5-значный код, который живет 30 секунд) */
     twoFactorCode?: string;
-}
-
-export interface Cookies {
-    sessionid?: string;
-    steamCountry?: string;
 }
 
 export interface Cookie {
@@ -71,9 +69,14 @@ export interface Cookie {
 }
 
 export interface CreateBuyOrderParams {
+    /**Полное и уникальное рыночное название предмета */
     market_hash_name: string;
+    /**Id игры в системе Steam. у CSGO = 730. у Dota2 = 570. у tf2 = 440 */
     appid: number;
+    /**Цена в копейках/центах */
     price: number;
+    /**Количество предметов в запросе */
     quantity: number;
-    currency: 1 | 2 | 3 | 4 | 5;
+    /**Валюта, в которой будет выставлен запрос. Должна совпадать с валютой аккаунта. usd = 1; euro = 2; rub = 5; */
+    currency: number;
 }

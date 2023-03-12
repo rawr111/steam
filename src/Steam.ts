@@ -18,7 +18,8 @@ class Steam extends Base {
         return clientJsToken;
     }
 
-    async getAuthStatus() {
+    /**Получить статус авторизации. Проверить авторизованы ли мы сейчас в Steam? Действительны ли наши куки*/
+    async isAuthorized() {
         return (await this.getClientJsToken()).logged_in;
     }
 
@@ -110,6 +111,7 @@ class Steam extends Base {
         }
     }
 
+    /**(основные методы) Сгенерировать 5-значный вход для входа в аккаунт. shared_secret - код из maFile*/
     generateTwoFactorCode(shared_secret: string) {
         try {
             const bufferizedSharedSecret = this.bufferizeSecret(shared_secret);
@@ -139,9 +141,10 @@ class Steam extends Base {
         }
     }
 
-    async authentificate(params: AuthentificationParams) {
+    /**(основной метод) Пройти авторизацию в Steam (получить доступ к аккаунту) */
+    async authorization(params: AuthentificationParams) {
         try {
-            const isLoggedIn = await this.getAuthStatus();
+            const isLoggedIn = await this.isAuthorized();
             if (isLoggedIn) {
                 throw new Error(`Already logged in`);
             }
@@ -161,6 +164,7 @@ class Steam extends Base {
         }
     }
 
+    /**(работа с тп) Поставить запрос на покупку предмета */
     async createBuyOrder(params: CreateBuyOrderParams): Promise<void> {
         try {
             const cookies = this.getCookies();
@@ -193,10 +197,34 @@ class Steam extends Base {
             throw new Error(`Can't create buy order: ${err}`);
         }
     }
-    async getLastSales(market_hash_name: string) {
-        return this.doRequest(`https://steamcommunity.com/market/listings/730/${encodeURIComponent(market_hash_name)}`, {
-
-        }, { isJsonResult: false, useCookies: false});
+    /**(работа с тп) Возвращает все точки на графике, отображаемые в Steam (date, price, quantity) В ДОЛЛАРАХ США!*/
+    async getLastSales(market_hash_name: string, options?: {
+        /**прокси в формате username:password@ip:port, через который пройдет запрос (он будет приоритетнее, чем тот, который передан в конструктор класса) */
+        proxy?: string,
+        /**Использовать ли куки аккаунта в запросе */
+        withLogin?: boolean
+    }): Promise<[Date, number, number][]> {
+        try {
+            const response = await this.doRequest(
+                `https://steamcommunity.com/market/listings/730/${encodeURIComponent(market_hash_name)}`,
+                {},
+                { isJsonResult: false, useSavedCookies: options?.withLogin === true, customProxy: options?.proxy }
+            );
+            const pos1 = response.indexOf("var line1=", 0) + "var line1=".length;
+            const pos2 = response.indexOf(';', pos1);
+            const arr: [string, number, string][] = JSON.parse(response.slice(pos1, pos2));
+            const results = arr.map(el => {
+                const newEl: [Date, number, number] = [
+                    new Date(el[0]),
+                    el[1],
+                    Number(el[2])
+                ];
+                return newEl;
+            });
+            return results;
+        } catch (err) {
+            throw new Error(`Can't get last sales: ${err}`);
+        }
     }
 }
 
